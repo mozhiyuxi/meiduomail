@@ -37,9 +37,14 @@ class SmsCodeSerializer(serializers.Serializer):
             raise serializers.ValidationError("图片验证码错误")
 
         # 判断是否在60s内
-        mobile = self.context['view'].kwargs['mobile']
-        send_flag = redis_conn.get("send_flag_%s" % mobile)
-        if send_flag:
-            raise serializers.ValidationError('请求次数过于频繁')
+        try:
+            mobile = self.context['view'].kwargs['mobile']
+        except KeyError:
+            mobile = None
+        # 通过视图是否有mobile参数判断是否进行短信测操作
+        if mobile:
+            send_flag = redis_conn.get("send_flag_%s" % mobile)
+            if send_flag:
+                raise serializers.ValidationError('请求次数过于频繁')
 
         return attrs
