@@ -1,13 +1,13 @@
 import re
-
+from rest_framework import serializers
 from django_redis import get_redis_connection
 from rest_framework_jwt.settings import api_settings
 
 from users.utils import get_user_by_account
 from .models import User
-from rest_framework import serializers
+from celery_tasks.email.task import send_verify_email
 
-
+# 创建用户序列化器
 class CreateUserSerializer(serializers.ModelSerializer):
     """
     创建用户序列化器
@@ -95,6 +95,8 @@ class CreateUserSerializer(serializers.ModelSerializer):
             }
         }
 
+
+# 检查sms code
 class CheckSMSCodeSerializer(serializers.Serializer):
     """
     检查sms code
@@ -119,7 +121,7 @@ class CheckSMSCodeSerializer(serializers.Serializer):
             raise serializers.ValidationError('短信验证码错误')
         return value
 
-
+# 重置密码序列化器
 class ResetPasswordSerializer(serializers.ModelSerializer):
     """重置密码序列化器"""
     password2 = serializers.CharField(max_length=20, min_length=8, write_only=True, label="确认密码")
@@ -159,4 +161,38 @@ class ResetPasswordSerializer(serializers.ModelSerializer):
         return instance
 
 
+# 用户详细信息序列化器
+class UserDetailSerializer(serializers.ModelSerializer):
+    """
+    用户详细信息序列化器
+    """
+    class Meta:
+        model = User
+        fields = ('id', 'username', 'mobile', 'email', 'email_active')
 
+
+# 邮箱序列化器
+class EmailSerializer(serializers.ModelSerializer):
+    """
+    邮箱序列化器
+    """
+    class Meta:
+        model = User
+        fields = ('id', 'email')
+        extra_kwargs = {
+            'email': {
+                'required': True
+            }
+        }
+
+    def update(self, instance, validated_data):
+        instance.email = validated_data['email']
+        instance.save()
+
+        # 通过celery发送激活邮件
+        # 生成验证链接
+        verify_url = instance.generate_verify_email_url()
+        # 发送验证邮件
+        send_verify_email.delay(validated_data['email'], verify_url)
+
+        return instance
