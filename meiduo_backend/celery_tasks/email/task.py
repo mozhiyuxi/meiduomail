@@ -12,7 +12,7 @@ def send_verify_email(to_email, verify_url):
     :param verify_url: 验证链接
     :return: None
     """
-    subject = "美多商城邮箱验证"
+    subject = "可能就是这个问题"
     html_message = '<p>尊敬的用户您好！</p>' \
                    '<p>感谢您使用美多商城。</p>' \
                    '<p>您的邮箱为：%s 。请点击此链接激活您的邮箱：</p>' \
